@@ -9,8 +9,17 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-// Railway proxy fix
+// ===== RAILWAY FIX =====
 app.set("trust proxy", true);
+
+// evita crash silencioso (502)
+process.on("uncaughtException", (err) => {
+    console.log("UNCAUGHT:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+    console.log("REJECTION:", err);
+});
 
 app.use(express.json());
 
@@ -103,7 +112,7 @@ function auth(req, res, next) {
     next();
 }
 
-// AUTH (register + login)
+// AUTH
 app.post("/auth", (req, res) => {
     const username = req.body.username;
 
@@ -169,6 +178,7 @@ app.post("/upload", auth, upload.single("file"), (req, res) => {
         });
     }
 
+    // ===== HTTPS FIX (RAILWAY) =====
     const protocol =
         req.headers["x-forwarded-proto"] || "https";
 
@@ -197,8 +207,8 @@ app.post("/upload", auth, upload.single("file"), (req, res) => {
 // static
 app.use("/uploads", express.static(uploadBase));
 
-// Railway port fix
-const PORT = process.env.PORT || 3000;
+// ===== RAILWAY PORT FIX =====
+const PORT = process.env.PORT;
 
 server.listen(PORT, () => {
     console.log("SERVER RUNNING ON " + PORT);
