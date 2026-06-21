@@ -9,10 +9,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-// ===== RAILWAY FIX =====
 app.set("trust proxy", true);
 
-// evita crash silencioso (502)
 process.on("uncaughtException", (err) => {
     console.log("UNCAUGHT:", err);
 });
@@ -21,19 +19,21 @@ process.on("unhandledRejection", (err) => {
     console.log("REJECTION:", err);
 });
 
-app.use(express.json());
+// JSON LIMIT AUMENTADO (máximo seguro real no Node/Express)
+app.use(express.json({ limit: "1gb" }));
 
-// normaliza rotas
 app.use((req, res, next) => {
     req.url = req.url.replace(/\/{2,}/g, "/");
     next();
 });
 
-// debug
 app.use((req, res, next) => {
-    console.log("REQ =>", req.method, req.url);
-    console.log("BODY =>", req.body);
-    console.log("API KEY HEADER =>", req.headers["x-api-key"]);
+    req.setTimeout(0);
+    res.setTimeout(0);
+
+    req.socket.setNoDelay(true);
+    req.socket.setKeepAlive(true);
+
     next();
 });
 
@@ -62,7 +62,6 @@ function saveUsers(data) {
     fs.writeFileSync(usersFile, JSON.stringify(data, null, 2));
 }
 
-// API KEY 30 chars
 function generateApiKey() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let key = "";
@@ -112,7 +111,6 @@ function auth(req, res, next) {
     next();
 }
 
-// AUTH
 app.post("/auth", (req, res) => {
     const username = req.body.username;
 
@@ -151,7 +149,6 @@ app.post("/auth", (req, res) => {
     });
 });
 
-// upload storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(uploadBase, req.user.username, "uploads");
@@ -166,10 +163,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
-    limits: { fileSize: 1024 * 1024 * 500 }
+    limits: {
+        fileSize: 1024 * 1024 * 1024
+    },
+    preservePath: false
 });
 
-// upload route
 app.post("/upload", auth, upload.single("file"), (req, res) => {
     if (!req.file) {
         return res.status(400).json({
@@ -178,10 +177,7 @@ app.post("/upload", auth, upload.single("file"), (req, res) => {
         });
     }
 
-    // ===== HTTPS FIX (RAILWAY) =====
-    const protocol =
-        req.headers["x-forwarded-proto"] || "https";
-
+    const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.headers.host;
 
     const fileUrl =
@@ -204,10 +200,11 @@ app.post("/upload", auth, upload.single("file"), (req, res) => {
     res.json(response);
 });
 
-// static
-app.use("/uploads", express.static(uploadBase));
+app.use("/uploads", express.static(uploadBase, {
+    maxAge: "1d",
+    etag: false
+}));
 
-// ===== RAILWAY PORT FIX =====
 const PORT = process.env.PORT;
 
 server.listen(PORT, () => {
