@@ -9,9 +9,12 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
+// Railway proxy fix
+app.set("trust proxy", true);
+
 app.use(express.json());
 
-// normaliza //
+// normaliza rotas
 app.use((req, res, next) => {
     req.url = req.url.replace(/\/{2,}/g, "/");
     next();
@@ -39,7 +42,7 @@ if (!fs.existsSync(usersFile)) {
 function loadUsers() {
     try {
         const raw = fs.readFileSync(usersFile, "utf-8");
-        if (!raw) return {};
+        if (!raw || raw.trim() === "") return {};
         return JSON.parse(raw);
     } catch {
         return {};
@@ -50,12 +53,12 @@ function saveUsers(data) {
     fs.writeFileSync(usersFile, JSON.stringify(data, null, 2));
 }
 
-// 30 chars sem prefixo
+// API KEY 30 chars
 function generateApiKey() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let key = "";
 
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 30; i++) {
         key += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
@@ -79,7 +82,10 @@ function auth(req, res, next) {
     let apiKey = req.headers["x-api-key"];
 
     if (!apiKey) {
-        return res.status(401).json({ status: "error", message: "NO_API_KEY" });
+        return res.status(401).json({
+            status: "error",
+            message: "NO_API_KEY"
+        });
     }
 
     apiKey = String(apiKey).trim();
@@ -87,19 +93,25 @@ function auth(req, res, next) {
     const user = getUserByApiKey(apiKey);
 
     if (!user) {
-        return res.status(403).json({ status: "error", message: "INVALID_API_KEY" });
+        return res.status(403).json({
+            status: "error",
+            message: "INVALID_API_KEY"
+        });
     }
 
     req.user = user;
     next();
 }
 
-// AUTH
+// AUTH (register + login)
 app.post("/auth", (req, res) => {
     const username = req.body.username;
 
     if (!username) {
-        return res.json({ status: "error", message: "NO_USERNAME" });
+        return res.json({
+            status: "error",
+            message: "NO_USERNAME"
+        });
     }
 
     const users = loadUsers();
@@ -130,7 +142,7 @@ app.post("/auth", (req, res) => {
     });
 });
 
-// upload
+// upload storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(uploadBase, req.user.username, "uploads");
@@ -148,36 +160,46 @@ const upload = multer({
     limits: { fileSize: 1024 * 1024 * 500 }
 });
 
+// upload route
 app.post("/upload", auth, upload.single("file"), (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ status: "error", message: "NO_FILE" });
+        return res.status(400).json({
+            status: "error",
+            message: "NO_FILE"
+        });
     }
+
+    const protocol =
+        req.headers["x-forwarded-proto"] || "https";
 
     const host = req.headers.host;
 
     const fileUrl =
-        "http://" +
+        protocol +
+        "://" +
         host +
         "/uploads/" +
         req.user.username +
         "/uploads/" +
         req.file.filename;
 
-    io.emit("file_uploaded", {
+    const response = {
         status: "ok",
         success: true,
         fileUrl
-    });
+    };
 
-    res.json({
-        status: "ok",
-        success: true,
-        fileUrl
-    });
+    io.emit("file_uploaded", response);
+
+    res.json(response);
 });
 
+// static
 app.use("/uploads", express.static(uploadBase));
 
-server.listen(3000, () => {
-    console.log("SERVER RUNNING ON 3000");
+// Railway port fix
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+    console.log("SERVER RUNNING ON " + PORT);
 });
