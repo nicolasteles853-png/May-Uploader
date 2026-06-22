@@ -112,7 +112,9 @@ function auth(req, res, next) {
 }
 
 app.post("/auth", (req, res) => {
-    const username = req.body.username;
+
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "").trim();
 
     if (!username) {
         return res.json({
@@ -121,27 +123,49 @@ app.post("/auth", (req, res) => {
         });
     }
 
+    if (!password) {
+        return res.json({
+            status: "error",
+            message: "NO_PASSWORD"
+        });
+    }
+
     const users = loadUsers();
 
+    // usuário não existe -> cria
     if (!users[username]) {
+
         const apiKey = generateApiKey();
 
         users[username] = {
-            apiKey,
+            password: password,
+            apiKey: apiKey,
             createdAt: Date.now()
         };
 
         saveUsers(users);
 
-        fs.mkdirSync(path.join(uploadBase, username, "uploads"), { recursive: true });
+        fs.mkdirSync(
+            path.join(uploadBase, username, "uploads"),
+            { recursive: true }
+        );
 
         return res.json({
             status: "ok",
             mode: "register",
-            apiKey
+            apiKey: apiKey
         });
     }
 
+    // usuário existe mas senha errada
+    if (String(users[username].password || "") !== password) {
+        return res.json({
+            status: "error",
+            message: "INVALID_PASSWORD"
+        });
+    }
+
+    // login
     return res.json({
         status: "ok",
         mode: "login",
