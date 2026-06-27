@@ -1,1 +1,12 @@
-{}
+{
+  "Kaki": {
+    "password": "Kaki123",
+    "apiKey": "YJ18Pugz3KDb2pd44H7Bo4xJg1prIrMUK9oqA3uaHIHfO3Yg5krlcwB6Dz0XJiN0EwHdy89Fo515lPSVBHt013OW1EyfBZIN3Fc9vEmrDj5iDacpXnAd1533WBT3MxhAVV2xCMW1Kq0Yu2ZgTdJccZ",
+    "createdAt": 1782578931790
+  },
+  "Nico": {
+    "password": "Nico",
+    "apiKey": "hcKEdy93Zui9f5kKcUiibg7CyRV5FXoQ13CifZpbPRJaLxqeAeGXBYrNIkNZMrUCyibQ4NcmpoL8ProCDtP1oSQPJZWbuwNqdJT58pojL39XMps8tMOT1iTdoGwDYFY0erUGJBFgaY46zay7QjF0CJ",
+    "createdAt": 1782578947557
+  }
+}

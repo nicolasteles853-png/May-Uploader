@@ -66,7 +66,7 @@ function generateApiKey() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let key = "";
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 150; i++) {
         key += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
@@ -229,7 +229,7 @@ app.use("/uploads", express.static(uploadBase, {
     etag: false
 }));
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
     console.log("SERVER RUNNING ON " + PORT);
